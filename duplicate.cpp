@@ -1,38 +1,57 @@
 #include "duplicate.h"
 
 #include <QtCore/QDir>
+#include <QtCore/QCoreApplication>
 #include <QtCore/QFileInfo>
 #include <QtGui/QImage>
 #include <QtCore/QBitArray>
+#include <QtGui/QStandardItemModel>
+#include <QtCore/QDateTime>
 #include <QDebug>
 
-Duplicate::Duplicate()
+Duplicate::Duplicate(QStandardItemModel *model, QObject *parent) : QObject(parent)
+{
+    this->model = model;
+}
+
+Duplicate::~Duplicate()
 {
 
 }
 
-QList<QFileInfo> Duplicate::search(const QString &dir)
+void Duplicate::search(const QString &dir)
 {
     QMap<QByteArray, QFileInfo> allFiles;
     QMultiMap<QByteArray, QFileInfo> duplicateFiles;
     QByteArray hashFile;
 
+    time.start();
     QList<QFileInfo> filesList = getFilesList(dir);
+    qDebug("getFilesList: %d ms", time.elapsed());
 
     QList<QFileInfo>::const_iterator constIt;
     for (constIt = filesList.constBegin(); constIt != filesList.constEnd(); ++constIt) {
-        hashFile = getHashImage((*constIt).absoluteFilePath());
-        if (duplicateFiles.contains(hashFile))
+        time.start();
+        hashFile = hashImage((*constIt).absoluteFilePath());
+        qDebug("hashImage: %d ms", time.elapsed());
+
+        if (duplicateFiles.contains(hashFile)) {
             duplicateFiles.insertMulti(hashFile, (*constIt));
+            addItemToModel((*constIt));
+        }
         else if (allFiles.contains(hashFile)) {
             duplicateFiles.insertMulti(hashFile, (*constIt));
             duplicateFiles.insertMulti(hashFile, allFiles.value(hashFile));
+            addItemToModel((*constIt));
+            addItemToModel(allFiles.value(hashFile));
             allFiles.remove(hashFile);
         }
         else
             allFiles.insert(hashFile, (*constIt));
+        qApp->processEvents();
     }
-    return duplicateFiles.values();
+
+    return;
 }
 
 QList<QFileInfo> Duplicate::getFilesList(const QString &dir)
@@ -47,11 +66,13 @@ QList<QFileInfo> Duplicate::getFilesList(const QString &dir)
             continue;
         }
         files.append((*constIt));
+        emit fileFound();
+        qApp->processEvents();
     }
     return files;
 }
 
-QByteArray Duplicate::getHashImage(const QString &nameFile) const
+QByteArray Duplicate::hashImage(const QString &nameFile) const
 {
     QImage image(nameFile);
 
@@ -87,4 +108,14 @@ QByteArray Duplicate::getHashImage(const QString &nameFile) const
     out << bits;
 
     return hash.toHex();
+}
+
+void Duplicate::addItemToModel(QFileInfo fileInfo)
+{
+    QStandardItem *item = new QStandardItem(QIcon(fileInfo.absoluteFilePath()), QDir().toNativeSeparators(fileInfo.absoluteFilePath()));
+    item->setCheckable(true);
+    model->appendRow(QList<QStandardItem*>()
+                               << item
+                               << new QStandardItem(fileInfo.created().toString("dd.MM.yyyy hh:mm"))
+                               << new QStandardItem(QString::number(fileInfo.size())));
 }

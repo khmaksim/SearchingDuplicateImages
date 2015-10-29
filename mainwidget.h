@@ -26,6 +26,8 @@ class MainWidget : public QWidget
         void enableStartButton();
         void startSearch();
         void setView(int);
+        void changeProgressSearch();
+        void clearImagesModel();
 };
 
 #endif // MAINWIDGET_H

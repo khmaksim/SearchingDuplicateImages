@@ -3,10 +3,10 @@
 
 #include <QtWidgets/QFileDialog>
 #include <QtGui/QStandardItemModel>
-#include <QtCore/QDateTime>
 #include <QDebug>
 
 #include "duplicate.h"
+#include "tableitemdelegate.h"
 
 MainWidget::MainWidget(QWidget *parent) :
     QWidget(parent),
@@ -19,6 +19,8 @@ MainWidget::MainWidget(QWidget *parent) :
 
     ui->imageListView->setModel(imagesModel);
     ui->imagesTableView->setModel(imagesModel);
+    ui->imagesTableView->setItemDelegate(new TableItemDelegate(this));
+
     ui->stackedWidget->setCurrentIndex(0);
 
     connect(ui->selectDirButton, SIGNAL(clicked(bool)), SLOT(selectDirectory()));
@@ -48,25 +50,9 @@ void MainWidget::enableStartButton()
 
 void MainWidget::startSearch()
 {
-    Duplicate *duplicate = new Duplicate();
-    QList<QFileInfo> list = duplicate->search(selectedDirectory);
-    QStandardItem *item;
-    int row = 0;
-
-    QList<QFileInfo>::const_iterator constIt = list.constBegin();
-    while (constIt != list.constEnd()) {
-        item = new QStandardItem(QIcon((*constIt).absoluteFilePath()), QDir().toNativeSeparators((*constIt).absoluteFilePath()));
-        item->setCheckable(true);
-        imagesModel->setItem(row, 0, item);
-        item = new QStandardItem((*constIt).created().toString("dd.MM.yyyy hh:mm"));
-        item->setTextAlignment(Qt::AlignCenter);
-        imagesModel->setItem(row, 1, item);
-        item = new QStandardItem(QString::number((*constIt).size()));
-        item->setTextAlignment(Qt::AlignCenter);
-        imagesModel->setItem(row, 2, item);
-        ++constIt;
-        row++;
-    }
+    Duplicate *duplicate = new Duplicate(imagesModel);
+    connect(duplicate, SIGNAL(fileFound()), this, SLOT(changeProgressSearch()));
+    duplicate->search(selectedDirectory);
 }
 
 void MainWidget::setView(int index)
@@ -77,5 +63,17 @@ void MainWidget::setView(int index)
             break;
         case 1:
             ui->stackedWidget->setCurrentIndex(index);
+    }
+}
+
+void MainWidget::changeProgressSearch()
+{
+    ui->lcdNumber->display(ui->lcdNumber->value() + 1);
+}
+
+void MainWidget::clearImagesModel()
+{
+    while (imagesModel->rowCount() > 0) {
+        imagesModel->removeRow(0);
     }
 }

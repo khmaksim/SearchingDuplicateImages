@@ -14,9 +14,11 @@ TEMPLATE = app
 
 SOURCES += main.cpp\
         mainwidget.cpp \
-    duplicate.cpp
+    duplicate.cpp \
+    tableitemdelegate.cpp
 
 HEADERS  += mainwidget.h \
-    duplicate.h
+    duplicate.h \
+    tableitemdelegate.h
 
 FORMS    += mainwidget.ui
